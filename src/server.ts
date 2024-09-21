@@ -5,6 +5,7 @@ import amqp from 'amqplib/callback_api';
 import { connectDB } from './db';
 import { register, login } from './controllers/auth';
 import { setUserStatus, getUserStatus } from './redis';
+import { errorHandler } from './middleware/errorHandler';
 
 
 
@@ -18,6 +19,7 @@ connectDB();
 
 app.post('/register', register);
 app.post('/login', login);
+app.use(errorHandler);
 io.on('connection', (socket) => {
     console.log('New client connected');
 
