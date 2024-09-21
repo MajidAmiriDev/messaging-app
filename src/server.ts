@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import amqp from 'amqplib/callback_api';
+import { connectRabbitMQ } from './utils/rabbitmq';
 import { connectDB } from './db';
 import rateLimit from 'express-rate-limit';
 import { register, login, refreshAccessTokenController, requestPasswordReset, resetPassword } from './controllers/authController';
@@ -15,7 +15,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const app = express();
 app.use(express.json());
-
+await connectRabbitMQ();
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs

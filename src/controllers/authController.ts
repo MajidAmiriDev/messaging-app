@@ -5,6 +5,7 @@ import logger from '../utils/logger';
 import User from '../models/user';
 import LoginAttempt from '../models/loginAttempt';
 import { sendAlertEmail } from '../utils/mailer';
+import { sendMessage } from '../utils/rabbitmq';
 import crypto from 'crypto';
 
 class AuthController {
@@ -23,6 +24,8 @@ class AuthController {
             const accessToken = generateAccessToken(user._id);
             const refreshToken = await generateRefreshToken(user._id);
             logger.info(`User registered: ${email}`);
+            const message = JSON.stringify(req.body);
+            sendMessage(message);
             res.status(201).json({ message: 'User registered successfully', accessToken, refreshToken });
         } catch (error) {
             logger.error(`Registration failed for ${req.body.email}: ${error.message}`);
