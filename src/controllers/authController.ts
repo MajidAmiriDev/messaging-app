@@ -2,11 +2,16 @@ import { Request, Response } from 'express';
 import { registerUser, loginUser } from '../services/authService';
 import { generateAccessToken, generateRefreshToken, refreshAccessToken } from '../services/tokenService';
 import logger from '../utils/logger';
+import User from '../models/user';
+
 class AuthController {
     async register(req: Request, res: Response) {
         try {
             const { username, email, password } = req.body;
             const user = await registerUser(username, email, password);
+            if (!user.isPasswordStrong(password)) {
+                return res.status(400).json({ message: 'Password is too weak. Please choose a stronger password (at least 8 characters, including uppercase, lowercase, numbers, and symbols).' });
+            }
             const accessToken = generateAccessToken(user._id);
             const refreshToken = await generateRefreshToken(user._id);
             logger.info(`User registered: ${email}`);
