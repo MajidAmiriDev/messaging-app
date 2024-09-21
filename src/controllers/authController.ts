@@ -3,6 +3,9 @@ import { registerUser, loginUser } from '../services/authService';
 import { generateAccessToken, generateRefreshToken, refreshAccessToken } from '../services/tokenService';
 import logger from '../utils/logger';
 import User from '../models/user';
+import LoginAttempt from '../models/loginAttempt';
+import { sendAlertEmail } from '../utils/mailer';
+
 
 class AuthController {
     async register(req: Request, res: Response) {
@@ -26,6 +29,20 @@ class AuthController {
         try {
             const { email, password } = req.body;
             const { user, accessToken } = await loginUser(email, password);
+            const ipAddress = req.ip;
+            const deviceInfo = req.get('User-Agent');
+            await LoginAttempt.create({
+                userId: user._id,
+                ipAddress,
+                deviceInfo,
+            });
+            const loginAttempts = await LoginAttempt.find({ userId: user._id }).sort({ timestamp: -1 }).limit(5);
+            const suspiciousLogin = loginAttempts.some(attempt => attempt.ipAddress !== ipAddress);
+
+            if (suspiciousLogin) {
+                sendAlertEmail(user.email, `Suspicious login attempt detected from a different IP: ${ipAddress}`);
+            }
+            
             const refreshToken = await generateRefreshToken(user._id);
             logger.info(`User logged in: ${email}`);
             res.status(200).json({ message: 'Login successful', accessToken, refreshToken });
