@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import amqp from 'amqplib/callback_api';
 import { connectDB } from './db';
 import rateLimit from 'express-rate-limit';
-import { register, login, refreshAccessTokenController } from './controllers/auth';
+import { register, login, refreshAccessTokenController } from './controllers/authController';
 import { setUserStatus, getUserStatus } from './redis';
 import { errorHandler } from './middleware/errorHandler';
 
