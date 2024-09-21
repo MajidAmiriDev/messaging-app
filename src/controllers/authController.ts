@@ -5,9 +5,14 @@ import logger from '../utils/logger';
 import User from '../models/user';
 import LoginAttempt from '../models/loginAttempt';
 import { sendAlertEmail } from '../utils/mailer';
-
+import crypto from 'crypto';
 
 class AuthController {
+
+
+
+
+
     async register(req: Request, res: Response) {
         try {
             const { username, email, password } = req.body;
@@ -42,7 +47,7 @@ class AuthController {
             if (suspiciousLogin) {
                 sendAlertEmail(user.email, `Suspicious login attempt detected from a different IP: ${ipAddress}`);
             }
-            
+
             const refreshToken = await generateRefreshToken(user._id);
             logger.info(`User logged in: ${email}`);
             res.status(200).json({ message: 'Login successful', accessToken, refreshToken });
@@ -61,6 +66,59 @@ class AuthController {
             res.status(400).json({ message: error.message });
         }
     }
+
+
+    async requestPasswordReset(req: Request, res: Response) {
+        const { email } = req.body;
+
+        try {
+            const user = await User.findOne({ email });
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+
+            // تولید توکن بازیابی
+            const token = crypto.randomBytes(32).toString('hex');
+            user.passwordResetToken = token;
+            user.passwordResetExpires = Date.now() + 3600000; // توکن یک ساعت معتبر است
+            await user.save();
+
+            // ارسال ایمیل بازیابی رمز عبور
+            sendResetEmail(email, token);
+            res.status(200).json({ message: 'Reset password email sent' });
+        } catch (error) {
+            logger.error(`Error requesting password reset for ${email}: ${error.message}`);
+            res.status(500).json({ message: 'Error processing request' });
+        }
+    }
+
+    async resetPassword(req: Request, res: Response) {
+        const { token, newPassword } = req.body;
+
+        try {
+            const user = await User.findOne({
+                passwordResetToken: token,
+                passwordResetExpires: { $gt: Date.now() }, // بررسی توکن
+            });
+
+            if (!user) {
+                return res.status(400).json({ message: 'Invalid or expired token' });
+            }
+
+            // تنظیم رمز عبور جدید
+            user.password = newPassword; // هش کردن رمز عبور در مدل User
+            user.passwordResetToken = undefined;
+            user.passwordResetExpires = undefined;
+            await user.save();
+
+            res.status(200).json({ message: 'Password has been reset' });
+        } catch (error) {
+            logger.error(`Error resetting password: ${error.message}`);
+            res.status(500).json({ message: 'Error resetting password' });
+        }
+    }
+
+
 }
 
 export const authController = new AuthController();

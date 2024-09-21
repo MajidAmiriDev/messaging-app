@@ -54,6 +54,8 @@ const UserSchema: Schema = new Schema(
             enum: ['active', 'inactive'],
             default: 'active',
         },
+        passwordResetToken: { type: String },
+        passwordResetExpires: { type: Date },
     },
     {
         timestamps: true, // Automatically adds createdAt and updatedAt fields

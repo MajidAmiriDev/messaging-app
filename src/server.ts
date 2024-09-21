@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import amqp from 'amqplib/callback_api';
 import { connectDB } from './db';
 import rateLimit from 'express-rate-limit';
-import { register, login, refreshAccessTokenController } from './controllers/authController';
+import { register, login, refreshAccessTokenController, requestPasswordReset, resetPassword } from './controllers/authController';
 import { setUserStatus, getUserStatus } from './redis';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -28,6 +28,8 @@ connectDB();
 app.post('/register', register);
 app.post('/login', login);
 app.post('/refresh-token', refreshAccessTokenController);
+app.post('/request-password-reset', requestPasswordReset);
+app.post('/reset-password', resetPassword);
 app.use(errorHandler);
 io.on('connection', (socket) => {
     console.log('New client connected');
