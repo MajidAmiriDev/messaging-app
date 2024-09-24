@@ -8,39 +8,60 @@ import { register, login, refreshAccessTokenController, requestPasswordReset, re
 import { setUserStatus, getUserStatus } from './redis';
 import { errorHandler } from './middleware/errorHandler';
 
+// مدیریت خطاهای uncaughtException
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    // process.exit(1);
+});
 
+// مدیریت خطاهای unhandledRejection
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // process.exit(1);
+});
 
-
+const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const app = express();
 app.use(express.json());
-await connectRabbitMQ();
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests, please try again later.',
-});
-app.use(limiter);
 
-connectDB();
+const init = async () => {
+    try {
+        await connectRabbitMQ();
+        await connectDB();
 
-app.post('/register', register);
-app.post('/login', login);
-app.post('/refresh-token', refreshAccessTokenController);
-app.post('/request-password-reset', requestPasswordReset);
-app.post('/reset-password', resetPassword);
-app.use(errorHandler);
-io.on('connection', (socket) => {
-    console.log('New client connected');
+        const limiter = rateLimit({
+            windowMs: 15 * 60 * 1000, // 15 minutes
+            max: 100, // Limit each IP to 100 requests per windowMs
+            message: 'Too many requests, please try again later.',
+        });
+        app.use(limiter);
 
-    socket.on('sendMessage', (message) => {
-        io.emit('receiveMessage', message);
-        // Here we will later integrate RabbitMQ
-    });
+        app.post('/register', register);
+        app.post('/login', login);
+        app.post('/refresh-token', refreshAccessTokenController);
+        app.post('/request-password-reset', requestPasswordReset);
+        app.post('/reset-password', resetPassword);
+        app.use(errorHandler);
 
-    socket.on('disconnect', () => {
-        console.log('Client disconnected');
-    });
-});
-app.listen(5000, () => console.log('Server running on port 5000'));
+        io.on('connection', (socket) => {
+            console.log('New client connected');
+
+            socket.on('sendMessage', (message) => {
+                io.emit('receiveMessage', message);
+                // Here we will later integrate RabbitMQ
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Client disconnected');
+            });
+        });
+
+        server.listen(5000, () => console.log('Server running on port 5000'));
+    } catch (err) {
+        console.error('Initialization error:', err);
+        process.exit(1); // در صورت خطا در راه‌اندازی، اپلیکیشن را متوقف می‌کنیم
+    }
+};
+
+init();
